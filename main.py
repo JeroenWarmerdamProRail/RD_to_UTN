@@ -1,9 +1,24 @@
 from rijksdriehoek import rijksdriehoek
+import utils
 import pyproj
 import math
 from VisumPy.AddIn import AddIn
 from tkinter import Tk, messagebox
+import wx
 Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+
+outside_visum_call: bool = 'Visum' not in globals()
+# noinspection SpellCheckingInspection
+if outside_visum_call:
+    # we are running this python file outside Visum,
+    # so let us start Visum with some version file and continue with the code
+    # Visum = utils.open_visum("lnv bd 2018_di net 18-21 dd23.ver")
+    # Visum = utils.open_visum("20241215-BU-003__MLT_2027_Ehv-Duss_3_2023-07-28_02_13_38 versie 3.ver")
+    Visum = utils.open_visum("RD.ver")
+
+
+
+
 
 TITLE = "Rijksdriehoek to UTM conversion"
 
@@ -12,6 +27,7 @@ def Rijksdriehoek_to_utm31(XCoord,YCoord):
     rd = rijksdriehoek.Rijksdriehoek(XCoord, YCoord)
     lat, lon = rd.to_wgs()
     return projection(lon, lat)
+
 
 def ConvertVisumObject(object):
     x = object.AttValue("XCoord")
@@ -36,6 +52,7 @@ def ConvertCoordVisumObjectList(name, objectList):
         x_utm.append((x_rd[i][0], new_coordinates[0]))
         y_utm.append((y_rd[i][0], new_coordinates[1]))
         addIn.UpdateProgressDialog(len(x_utm) * 100 / (len(x_rd)+1))
+
     addIn.UpdateProgressDialog(50, f"Writing (XCoord, YCoord) to {name}")
     if len(x_utm) > 0:
         objectList.SetMultiAttValues("XCoord", x_utm)
@@ -121,7 +138,7 @@ def ConditionalConvert(name, objectList):
         y_max = max([y[1] for y in y_rd])
 
         answer = messagebox.askquestion(TITLE,
-            f"Table {name} contains {len(table)} records. \n" +
+            f"Table {name} contains {len(objectList)} records. \n" +
             "If we consider Apeldoorn in the center, then\n" +
             f"XCoord is between {math.floor((x_min - RD_AMERSFOORT[0])/1000)} and {math.ceil((x_max - RD_AMERSFOORT[0])/1000)} km and \n" +
             f"YCoord is between {math.floor((y_min - RD_AMERSFOORT[1])/1000)} and {math.ceil((y_max - RD_AMERSFOORT[1])/1000)} km.\n" +
@@ -141,19 +158,26 @@ def ConditionalConvert(name, objectList):
             if answer == 'yes':
                 ConvertGeoVisumObjectList(name, objectList, GeoField)
 
-tables = {
-    "Detectors"         : Visum.Net.Detectors,
-    "Mainnodes"         : Visum.Net.MainNodes,
-    "mainzones"         : Visum.Net.MainZones,
-    "nodes"             : Visum.Net.Nodes,
-    "links"             : Visum.Net.Links,
-    "stops"             : Visum.Net.Stops,
-    "stopareas"         : Visum.Net.StopAreas,
-    "territories"       : Visum.Net.Territories,
-    "zones"             : Visum.Net.Zones}
+def main():
+    if outside_visum_call:
+        app = wx.App(0)
+        print(app)  # in order to prevent warning
+    tables = {
+        "Detectors"         : Visum.Net.Detectors,
+        "Mainnodes"         : Visum.Net.MainNodes,
+        "mainzones"         : Visum.Net.MainZones,
+        "nodes"             : Visum.Net.Nodes,
+        "links"             : Visum.Net.Links,
+        "stops"             : Visum.Net.Stops,
+        "stopareas"         : Visum.Net.StopAreas,
+        "territories"       : Visum.Net.Territories,
+        "zones"             : Visum.Net.Zones}
 
-for name, table in tables.items():
-    if len(table) > 0:
-        ConditionalConvert(name, table)
+    for name, table in tables.items():
+        if len(table) > 0:
+            ConditionalConvert(name, table)
 
-messagebox.showinfo(TITLE, "Finished")
+    messagebox.showinfo(TITLE, "Finished")
+
+
+main()
