@@ -5,7 +5,8 @@ import math
 from VisumPy.AddIn import AddIn
 from tkinter import Tk, messagebox
 import wx
-Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
+
+Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
 
 outside_visum_call: bool = 'Visum' not in globals()
 # noinspection SpellCheckingInspection
@@ -16,14 +17,12 @@ if outside_visum_call:
     # Visum = utils.open_visum("20241215-BU-003__MLT_2027_Ehv-Duss_3_2023-07-28_02_13_38 versie 3.ver")
     Visum = utils.open_visum("RD.ver")
 
-
-
-
-
 TITLE = "Rijksdriehoek to UTM conversion"
 
 projection = pyproj.Proj(proj='utm', zone=31, ellps='WGS84')
-def Rijksdriehoek_to_utm31(XCoord,YCoord):
+
+
+def Rijksdriehoek_to_utm31(XCoord, YCoord):
     rd = rijksdriehoek.Rijksdriehoek(XCoord, YCoord)
     lat, lon = rd.to_wgs()
     return projection(lon, lat)
@@ -35,6 +34,7 @@ def ConvertVisumObject(object):
     new_coordinates = Rijksdriehoek_to_utm31(x, y)
     object.SetAttValue("XCoord", new_coordinates[0])
     object.SetAttValue("YCoord", new_coordinates[1])
+
 
 def ConvertCoordVisumObjectList(name, objectList):
     # objectList is a list of Visum objects like Node or Zones having XCoord and YCoord attributes.
@@ -51,13 +51,12 @@ def ConvertCoordVisumObjectList(name, objectList):
         new_coordinates = Rijksdriehoek_to_utm31(x_rd[i][1], y_rd[i][1])
         x_utm.append((x_rd[i][0], new_coordinates[0]))
         y_utm.append((y_rd[i][0], new_coordinates[1]))
-        addIn.UpdateProgressDialog(len(x_utm) * 100 / (len(x_rd)+1))
+        addIn.UpdateProgressDialog(len(x_utm) * 100 / (len(x_rd) + 1))
 
     addIn.UpdateProgressDialog(50, f"Writing (XCoord, YCoord) to {name}")
     if len(x_utm) > 0:
         objectList.SetMultiAttValues("XCoord", x_utm)
         objectList.SetMultiAttValues("YCoord", y_utm)
-
 
 
 # WKTPoly and WKTSurface are special string attributes containing many coordinates.
@@ -67,46 +66,51 @@ def ConvertCoordVisumObjectList(name, objectList):
 # "MULTIPOLYGON EMPTY"
 # "LINESTRING EMPTY"
 
-#We split each string in parts like "xxxxxx.xxxx yyyyyy.yyyy". We use the fact that those are the only parts containing a space.
-#Firstly we split on "(", convert each part and join again by "(
+# We split each string in parts like "xxxxxx.xxxx yyyyyy.yyyy". We use the fact that those are the only parts containing a space.
+# Firstly we split on "(", convert each part and join again by "(
 def ConvertGeoField(s):
-    if s[-1*len("EMPTY"):] == "EMPTY":
+    if s[-1 * len("EMPTY"):] == "EMPTY":
         return s
 
     if s[:len("LINESTRING")] == "LINESTRING":
-        return ConvertLineString(s) #special case
+        return ConvertLineString(s)  # special case
 
     return "(".join(map(f2, s.split("(")))
 
-#"Secondly we split on ")", convert each part and join again by ")
+
+# "Secondly we split on ")", convert each part and join again by ")
 def f2(s):
     if " " not in s:
         return s
     return ")".join(map(f3, s.split(")")))
 
-#"Thirdly we split on ",", convert each part and join again by ",
+
+# "Thirdly we split on ",", convert each part and join again by ",
 def f3(s):
     if " " not in s:
         return s
     return ",".join(map(f4, s.split(",")))
 
+
 def f4(s):
     if " " not in s:
         return s
-    #now we have a "xxxxxx.xxxx yyyyyy.yyyy" part
+    # now we have a "xxxxxx.xxxx yyyyyy.yyyy" part
     x, y = map(float, s.split(" "))
     new_coordinates = Rijksdriehoek_to_utm31(x, y)
     return f"{new_coordinates[0]:.4f} {new_coordinates[1]:.4f}"
 
+
 def ConvertLineString(s):
-# special precaution as the first and last point need to correspond with the start and end node.
-# we delete them and Visum will add them again, in correspondence with the nodes
-    points = s[len("LINESTRING(")+1:-1].split(",")  # only take what is inside LINESTRING(        and        )
-    points = points[1:-1]                           # remove first and last point
+    # special precaution as the first and last point need to correspond with the start and end node.
+    # we delete them and Visum will add them again, in correspondence with the nodes
+    points = s[len("LINESTRING(") + 1:-1].split(",")  # only take what is inside LINESTRING(        and        )
+    points = points[1:-1]  # remove first and last point
     if len(points) == 0:
-        return "LINESTRING EMPTY"                   # we need to make an exception as LINESTRING() does not work as expected
-    points = list(map(f4, points))                  # convert
+        return "LINESTRING EMPTY"  # we need to make an exception as LINESTRING() does not work as expected
+    points = list(map(f4, points))  # convert
     return "LINESTRING(" + ",".join(points) + ")"
+
 
 def ConvertGeoVisumObjectList(name, objectList, geoField):
     addIn = AddIn(Visum)
@@ -117,7 +121,7 @@ def ConvertGeoVisumObjectList(name, objectList, geoField):
     addIn.UpdateProgressDialog(0, f"Converting {geoField} from {name}")
     for x in rd:
         utm.append((x[0], ConvertGeoField(x[1])))
-        addIn.UpdateProgressDialog(len(utm) * 100 / (len(rd)+1))
+        addIn.UpdateProgressDialog(len(utm) * 100 / (len(rd) + 1))
 
     addIn.UpdateProgressDialog(50, f"Writing {geoField} to {name}")
     if len(utm) > 0:
@@ -125,6 +129,8 @@ def ConvertGeoVisumObjectList(name, objectList, geoField):
 
 
 RD_AMERSFOORT = (155000, 463000)
+
+
 def ConditionalConvert(name, objectList):
     try:
         x_rd = objectList.GetMultiAttValues("XCoord")
@@ -138,12 +144,12 @@ def ConditionalConvert(name, objectList):
         y_max = max([y[1] for y in y_rd])
 
         answer = messagebox.askquestion(TITLE,
-            f"Table {name} contains {len(objectList)} records. \n" +
-            "If we consider Apeldoorn in the center, then\n" +
-            f"XCoord is between {math.floor((x_min - RD_AMERSFOORT[0])/1000)} and {math.ceil((x_max - RD_AMERSFOORT[0])/1000)} km and \n" +
-            f"YCoord is between {math.floor((y_min - RD_AMERSFOORT[1])/1000)} and {math.ceil((y_max - RD_AMERSFOORT[1])/1000)} km.\n" +
-            "\n" +
-            "Convert?")
+                                        f"Table {name} contains {len(objectList)} records. \n" +
+                                        "If we consider Apeldoorn in the center, then\n" +
+                                        f"XCoord is between {math.floor((x_min - RD_AMERSFOORT[0]) / 1000)} and {math.ceil((x_max - RD_AMERSFOORT[0]) / 1000)} km and \n" +
+                                        f"YCoord is between {math.floor((y_min - RD_AMERSFOORT[1]) / 1000)} and {math.ceil((y_max - RD_AMERSFOORT[1]) / 1000)} km.\n" +
+                                        "\n" +
+                                        "Convert?")
 
         if answer == 'yes':
             ConvertCoordVisumObjectList(name, objectList)
@@ -158,20 +164,21 @@ def ConditionalConvert(name, objectList):
             if answer == 'yes':
                 ConvertGeoVisumObjectList(name, objectList, GeoField)
 
+
 def main():
     if outside_visum_call:
         app = wx.App(0)
         print(app)  # in order to prevent warning
     tables = {
-        "Detectors"         : Visum.Net.Detectors,
-        "Mainnodes"         : Visum.Net.MainNodes,
-        "mainzones"         : Visum.Net.MainZones,
-        "nodes"             : Visum.Net.Nodes,
-        "links"             : Visum.Net.Links,
-        "stops"             : Visum.Net.Stops,
-        "stopareas"         : Visum.Net.StopAreas,
-        "territories"       : Visum.Net.Territories,
-        "zones"             : Visum.Net.Zones}
+        "Detectors": Visum.Net.Detectors,
+        "Mainnodes": Visum.Net.MainNodes,
+        "mainzones": Visum.Net.MainZones,
+        "nodes": Visum.Net.Nodes,
+        "links": Visum.Net.Links,
+        "stops": Visum.Net.Stops,
+        "stopareas": Visum.Net.StopAreas,
+        "territories": Visum.Net.Territories,
+        "zones": Visum.Net.Zones}
 
     for name, table in tables.items():
         if len(table) > 0:
