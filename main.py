@@ -2,6 +2,7 @@ from rijksdriehoek import rijksdriehoek
 import utils
 import pyproj
 import math
+import time
 from VisumPy.AddIn import AddIn
 from tkinter import Tk, messagebox
 import wx
@@ -115,10 +116,12 @@ def ConvertLineString(s):
 def ConvertGeoVisumObjectList(name, objectList, geoField):
     addIn = AddIn(Visum)
     addIn.ShowProgressDialog(TITLE, f"Reading {geoField} from {name}", 100)
+    time.sleep(2)
     addIn.UpdateProgressDialog(50)
     rd = objectList.GetMultiAttValues(geoField)
     utm = []
-    addIn.UpdateProgressDialog(0, f"Converting {geoField} from {name}")
+    addIn.UpdateProgressDialog(0, f"Converting {geoField} from {name}... {len(rd)}")
+    time.sleep(2)
     for x in rd:
         utm.append((x[0], ConvertGeoField(x[1])))
         addIn.UpdateProgressDialog(len(utm) * 100 / (len(rd) + 1))
@@ -135,9 +138,8 @@ def ConditionalConvert(name, objectList):
     try:
         x_rd = objectList.GetMultiAttValues("XCoord")
         y_rd = objectList.GetMultiAttValues("YCoord")
-    except:
-        None
-    else:
+        # exception when XCoord and YCoord are not present, then do nothing
+
         x_min = min([x[1] for x in x_rd])
         x_max = max([x[1] for x in x_rd])
         y_min = min([y[1] for y in y_rd])
@@ -154,15 +156,17 @@ def ConditionalConvert(name, objectList):
         if answer == 'yes':
             ConvertCoordVisumObjectList(name, objectList)
 
+    except (Exception,):
+        pass
+
     for GeoField in ("WKTPoly", "WKTSurface"):
         try:
             rd = objectList.GetMultiAttValues(GeoField)
-        except:
-            None
-        else:
-            answer = messagebox.askquestion(TITLE, f"Convert {GeoField} from {name}?")
+            answer = messagebox.askquestion(TITLE, f"Convert {GeoField} for {len(rd)} records from {name}?")
             if answer == 'yes':
                 ConvertGeoVisumObjectList(name, objectList, GeoField)
+        except (Exception,):
+            pass
 
 
 def main():
