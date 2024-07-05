@@ -60,7 +60,7 @@ def dispatch(app_name: str):
 def open_visum(version_filename="test.ver"):
     assert 'Visum' not in globals()
     print("opening Visum")
-    result = dispatch("Visum.Visum.200")
+    result = dispatch("Visum.Visum.240")
     folder_of_this_python_file = os.path.dirname(os.path.realpath(__file__))
     folder_of_test_version_files = os.path.join(folder_of_this_python_file, r"..\TestVersionFiles")
     full_filename = os.path.join(folder_of_test_version_files, version_filename)
